@@ -8,15 +8,54 @@ document.body.appendChild(kursor)
 
 let posX = window.innerWidth / 2
 let posY = window.innerHeight / 2
-const speed = 15
+const speed = 30
 
-//              up      down    left    right   click   copy    mode
-const keys = ['KeyI', 'KeyK', 'KeyJ', 'KeyL', 'Space', 'KeyC', 'KeyM']
+//              up      down    left    right   click   copy    detector    free    grid
+const keys = ['KeyI', 'KeyK', 'KeyJ', 'KeyL', 'Space', 'KeyC', 'KeyM', 'KeyN', 'KeyB']
+
+// v AI v
+
+const mapping = {
+    // Top Row: Q to P (Baseline distribution)
+    'KeyQ': [0.05, 0.20],
+    'KeyW': [0.15, 0.20],
+    'KeyE': [0.25, 0.20],
+    'KeyR': [0.35, 0.20],
+    'KeyT': [0.45, 0.20],
+    'KeyY': [0.55, 0.20],
+    'KeyU': [0.65, 0.20],
+    'KeyI': [0.75, 0.20],
+    'KeyO': [0.85, 0.20],
+    'KeyP': [0.95, 0.20],
+
+    // Home Row: A to L (Shifted right by ~0.03 for physical QWERTY alignment)
+    'KeyA': [0.08, 0.50],
+    'KeyS': [0.18, 0.50],
+    'KeyD': [0.28, 0.50],
+    'KeyF': [0.38, 0.50],
+    'KeyG': [0.48, 0.50],
+    'KeyH': [0.58, 0.50],
+    'KeyJ': [0.68, 0.50],
+    'KeyK': [0.78, 0.50],
+    'KeyL': [0.88, 0.50],
+
+    // Bottom Row: Z to M (Shifted right by ~0.07 for physical QWERTY alignment)
+    'KeyZ': [0.12, 0.80],
+    'KeyX': [0.22, 0.80],
+    'KeyC': [0.32, 0.80],
+    'KeyV': [0.42, 0.80],
+    'KeyB': [0.52, 0.80],
+    'KeyN': [0.62, 0.80],
+    'KeyM': [0.72, 0.80]
+}
+
+// ^ AI ^
 
 let buffer = ""
 let enabled = false
 
 let mode = "free"
+let lastMode = "grid"
 
 let dx = 0
 let dy = 0
@@ -109,37 +148,76 @@ function goToInteractables(direction) {
     }
 }
 
+function generateGridIndicator() {
+    for (const [keyName, coords] of Object.entries(mapping)) {
+        const label = document.createElement('label')
+        label.style.position = "fixed"
+        
+        label.style.left = map(coords[0], 0, 1, 0, window.innerWidth) + "px"
+        label.style.top = map(coords[1], 0, 1, 0, window.innerHeight) + "px"
+
+        label.style.backgroundColor = "black"
+        label.style.color = "white"
+        label.style.zIndex = "10000"
+
+        
+        label.textContent = keyName.replace("Key", "")
+        
+        label.className = "kursor-grid-indicator"
+        document.body.append(label)
+    }
+}
+
+function removeGridIndicator() {
+    const indicators = document.querySelectorAll(".kursor-grid-indicator")
+    for (const ele of indicators) {
+        ele.remove()
+    }
+}
+
 window.addEventListener('keydown', (event) => {
     if (event.altKey && event.code == 'KeyK') {
         enabled = !enabled
+        removeGridIndicator()
         notif(enabled ? "Enabled!" : "Disabled!")
         kursor.style.opacity = enabled ? 1 : 0.5;
     }
 
-    if (keys.includes(event.code) && enabled) {
+    if (enabled) {
         event.preventDefault()
         // console.log("hello, world!")
-        if (event.code == keys[6]) {
-            if (mode == "free") {
-                mode = "detector"
-            } else {
-                mode = "free"
-            }
-
-            notif(mode)
+        if (event.altKey && event.code == keys[7]) {
+            const temp = mode;
+            mode = (mode == "free") ? lastMode : "free";
+            lastMode = temp;
+            notif(mode);
+        } else if (event.altKey && event.code == keys[6]) {
+            const temp = mode;
+            mode = (mode == "detector") ? lastMode : "detector";
+            lastMode = temp;
+            notif(mode);
+        } else if (event.altKey && event.code == keys[8]) {
+            const temp = mode;
+            mode = (mode == "grid") ? lastMode : "grid";
+            lastMode = temp;
+            notif(mode);
         }
 
         if (mode == "grid") {
-            if (event.code == keys[0]) posY = Math.max(0, posY - speed);
-            if (event.code == keys[1]) posY = Math.min(window.innerHeight, posY + speed);
-            if (event.code == keys[2]) posX = Math.max(0, posX - speed);
-            if (event.code == keys[3]) posX = Math.min(window.innerWidth, posX + speed);
+            posX = map(mapping[event.code][0], 0, 1, 0, window.innerWidth)
+            posY = map(mapping[event.code][1], 0, 1, 0, window.innerHeight)
+
+            generateGridIndicator()
+
+            updateKursor()
         } else if (mode == "free") {
+            removeGridIndicator()
             if (event.code == keys[0]) up = true;
             if (event.code == keys[1]) down = true;
             if (event.code == keys[2]) left = true;
             if (event.code == keys[3]) right = true;
         } else if (mode == "detector") {
+            removeGridIndicator()
             if (event.code == keys[0]) goToInteractables("up");
             if (event.code == keys[1]) goToInteractables("down");
             if (event.code == keys[2]) goToInteractables("left");
